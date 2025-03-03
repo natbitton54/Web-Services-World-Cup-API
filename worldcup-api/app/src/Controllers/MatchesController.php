@@ -41,6 +41,7 @@ class MatchesController extends BaseController
      */
     public function handlePlayerMatchesPlayedById(Request $request, Response $response, array $uri_args): Response
     {
+        // Retrieve match ID from the URI arguments, or set it to null if not provided
         $match_id = $uri_args["match_id"] ?? null;
 
         // Validate match ID format (M-YYYY-MM)
@@ -49,32 +50,40 @@ class MatchesController extends BaseController
             throw new HttpInvalidInputException($request, "The provided match ID is invalid! Expected format: M-YYYY-MM.");
         }
 
+        // Retrieve filters from query parameters
         $filters = $request->getQueryParams();
         $filter_values = [];
 
+        // Validate the 'position' filter if it's set
         if (isset($filters['position'])) {
             $validPositions = ['goalkeeper', 'forward', 'defender', 'midfielder'];
             $position = strtolower(trim($filters['position']));
             if (!in_array($position, $validPositions)) {
+                // Throw an error if the position is not one of the allowed values
                 throw new HttpInvalidInputException($request, "Invalid position provided. Valid positions are: goalkeeper, forward, defender, midfielder.");
             }
+            // Store the valid position filter
             $filter_values['position'] = $filters['position'];
         }
 
+        // Validate and retrieve pagination parameters (e.g., page size, page number)
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+        // Set pagination options in the match model
         $this->match_model->setPaginationOptions(
             $pageCount,
             $page_size
         );
 
-        // Fetch goals from the db
+        // Fetch player match data from the database using the match ID and filters
         $match = $this->match_model->getPlayersMatchPlayedById($match_id, $filter_values);
 
+        // If no data is found, throw a NotFoundException
         if (!$match) {
             throw new NotFoundException("No match data found for the given match ID");
         }
 
+        // Return the match data as a JSON response with a 200 OK status
         return $this->renderJson($response, $match, 200);
     }
 }

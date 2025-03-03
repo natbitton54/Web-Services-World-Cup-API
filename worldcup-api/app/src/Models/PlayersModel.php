@@ -37,6 +37,7 @@ class PlayersModel extends BaseModel
      */
     public function getPlayers(array $filters, string $sort_by = 'family_name', string $sort_order = 'ASC'): array
     {
+        // the fields allowed to be sorted in the params
         $filters_values = [];
         $allowed_sort_fields = [
             'first_name' => 'given_name',
@@ -45,12 +46,14 @@ class PlayersModel extends BaseModel
             'player_id' => 'player_id'
         ];
 
-        // Validate and map sort field to database column
+        // Step 1: Validate and map the sort field to the database column
         $sort_column = $allowed_sort_fields[$sort_by] ?? 'family_name';
         $sort_order = strtoupper($sort_order) === 'DESC' ? 'DESC' : 'ASC';
 
+        // Step 2: Initialize base query
         $sql = "SELECT * FROM players WHERE 1";
-        // step 1: Add a conditions for the received filter(s)
+
+        // Step 3: Apply filters
         if (isset($filters['first_name'])) {
             $sql .= " AND given_name LIKE CONCAT(:first_name, '%') ";
             $filters_values['first_name'] = $filters['first_name'];
@@ -66,6 +69,7 @@ class PlayersModel extends BaseModel
             $filters_values['dob'] = $filters['dob'];
         }
 
+        // Step 4: Position filter with corrected case handling
         if (isset($filters['position']) && in_array($filters['position'], ['goalkeeper', 'forward', 'defender', 'midfielder'])) {
             switch ($filters['position']) {
                 case 'goalkeeper':
@@ -80,6 +84,7 @@ class PlayersModel extends BaseModel
             }
         }
 
+        // Step 5: Gender filter
         if (isset($filters['gender'])) {
             if ($filters['gender'] == 'female') {
                 $sql .= " AND female = 1";
@@ -88,7 +93,10 @@ class PlayersModel extends BaseModel
             }
         }
 
+        // Step 6: Append ORDER BY clause
         $sql .= " ORDER BY " . $sort_column . " " . $sort_order;
+
+        // Step 7: Execute query with pagination and return
         $players = $this->paginate($sql, $filters_values);
         return $players;
     }
@@ -102,8 +110,10 @@ class PlayersModel extends BaseModel
      */
     public function getPlayersById(String $player_id): mixed
     {
+        // Initialize the query
         $sql = "SELECT * FROM players WHERE player_id = :player_id ";
 
+        // Execute the query
         return $this->fetchSingle($sql, ["player_id" => $player_id]);
     }
 
@@ -118,9 +128,12 @@ class PlayersModel extends BaseModel
      */
     public function getGoalsByPlayerId(string $player_id, array $filters): array|bool
     {
+        // Step 1: Base SQL query
         $sql = "SELECT * FROM goals WHERE player_id = :player_id";
+        // The parameters array holds the player_id parameter for binding to the query
         $params = ['player_id' => $player_id];
 
+        // Step 2: Check for additional filters and modify the query accordingly
         if (!empty($filters['tournament'])) {
             $sql .= " AND tournament_id = :tournament";
             $params['tournament'] = $filters['tournament'];
@@ -130,6 +143,7 @@ class PlayersModel extends BaseModel
             $params['match'] = $filters['match'];
         }
 
+        // Step 3: Execute the query and paginate the results
         return $this->paginate($sql, $params) ?: false;
     }
 
@@ -143,9 +157,12 @@ class PlayersModel extends BaseModel
      */
     public function getAppearancesByPlayerId(string $player_id, array $filters): array|bool
     {
+        // Initialize the query
         $sql = "SELECT * FROM player_appearances WHERE player_id = :player_id";
+        // The parameters array holds the player_id parameter for binding to the query
         $params = ['player_id' => $player_id];
 
+        // Execute the query and paginate the results
         return $this->paginate($sql, $params);
     }
 }

@@ -45,22 +45,25 @@ class TeamsController extends BaseController
         $filters = $request->getQueryParams();
         // dd($filters);
 
+        // Validate pagination
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+        //  Set pagination options in the model
         $this->team_model->setPaginationOptions(
             $pageCount,
             $page_size
         );
 
-        // ?step 1: fetch the list of players from the db
+        // ?step 2: fetch the list of teams from the db
         $teams = $this->team_model->getTeams($filters);
 
+        // if no team found throw a 404 not found error
         if (empty($teams)) {
             throw new HttpNotFoundException($request, "No teams found for that criteria.");
         }
 
-        //! step 2: prepare the http response message
-        //! step 2.a: encode the response payload in json
+        //! step 3: prepare the http response message
+        //! step 3.a: encode the response payload in json
         return $this->renderJson($response, $teams);
     }
 
@@ -78,9 +81,10 @@ class TeamsController extends BaseController
      */
     public function handleGetTeamsById(Request $request, Response $response, array $uri_args): Response
     {
+        // Retrieve team ID from the URI arguments, or set it to null if not provided
         $team_id = $uri_args['team_id'];
 
-        // Validate player_id format
+        // Validate team id format
         $regex_team_id = "/^T-\d{2}$/";
         if (preg_match($regex_team_id, $team_id) === 0) {
             throw new HttpInvalidInputException(
@@ -89,9 +93,10 @@ class TeamsController extends BaseController
             );
         }
 
-        // Fetch player info
+        // Fetch team info
         $team_info = $this->team_model->getTeamsById($team_id);
 
+        // If no data is found, throw a NotFoundException
         if ($team_info === false) {
             throw new ExceptionHttpNotFoundException( //  404
                 $request,
@@ -99,6 +104,7 @@ class TeamsController extends BaseController
             );
         }
 
+        // Return the team data as a JSON response with a 200 OK status
         return $this->renderJson($response, $team_info, 200);
     }
 
@@ -116,6 +122,7 @@ class TeamsController extends BaseController
      */
     public function handleGetTeamAppearances(Request $request, Response $response, array $uri_args): Response
     {
+        // Retrieve team ID from the URI arguments, or set it to null if not provided
         $team_id = $uri_args["team_id"] ?? null;
 
         // Validate team_id format (T-00 to T-99, e.g., T-01, T-99)
@@ -124,6 +131,7 @@ class TeamsController extends BaseController
             throw new HttpInvalidInputException($request, "The provided team ID is invalid! Expected format: T-XX (e.g., T-00, T-01, T-99).");
         }
 
+        // Extract sorting parameters from filters
         $filters = $request->getQueryParams();
         $filter_values = [];
 
@@ -137,8 +145,10 @@ class TeamsController extends BaseController
             $filter_values['match_result'] = $filters['match_result'];
         }
 
+        // validate pagination
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+        // Set pagination options in the model
         $this->team_model->setPaginationOptions(
             $pageCount,
             $page_size
@@ -147,10 +157,12 @@ class TeamsController extends BaseController
         // Fetch appearances from the db
         $appearances = $this->team_model->getAppearancesByTeamId($team_id, $filter_values);
 
+        // If no data is found, throw a NotFoundException
         if ($appearances === false || empty($appearances)) {
             throw new HttpNotFoundException($request, "No appearances found for team ID or for a specific match result, $team_id or team does not exist.");
         }
 
+       // Return the data as a JSON response with a 200 OK status
         return $this->renderJson($response, $appearances, 200);
     }
 }

@@ -43,22 +43,25 @@ class TournamentsController extends BaseController
         $filters = $request->getQueryParams();
         // dd($filters);
 
+        // validate pagination
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+         // Set pagination options in the model
         $this->tournaments_model->setPaginationOptions(
             $pageCount,
             $page_size
         );
 
-        // ?step 1: fetch the list of players from the db
+        // ?step 2: fetch the list of tourneys from the db
         $tournaments = $this->tournaments_model->getTournaments($filters);
 
+         // If no data is found, throw a NotFoundException
         if (empty($tournaments)) {
             throw new HttpNotFoundException($request, "No tournaments found for that criteria.");
         }
 
-        //! step 2: prepare the http response message
-        //! step 2.a: encode the response payload in json
+        //! step 3: prepare the http response message
+        //! step 3.a: encode the response payload in json
         return $this->renderJson($response, $tournaments);
     }
 
@@ -76,6 +79,7 @@ class TournamentsController extends BaseController
      */
     public function handleGetTournamentById(Request $request, Response $response, array $uri_args): Response
     {
+        // Retrieve tournament ID from the URI arguments, or set it to null if not provided
         $tournament_id = $uri_args['tournament_id'];
 
         // Validate player_id format ... WC-xxxx
@@ -87,9 +91,10 @@ class TournamentsController extends BaseController
             );
         }
 
-        // Fetch player info
+        // Fetch team info by the provided id
         $tournament_info = $this->tournaments_model->getTournamentById($tournament_id);
 
+        // If no data is found, throw a NotFoundException
         if ($tournament_info === false) {
             throw new ExceptionHttpNotFoundException( //  404
                 $request,
@@ -97,6 +102,7 @@ class TournamentsController extends BaseController
             );
         }
 
+       // Return the data as a JSON response with a 200 OK status
         return $this->renderJson($response, $tournament_info, 200);
     }
 
@@ -115,6 +121,7 @@ class TournamentsController extends BaseController
      */
     public function handleGetTournamentMatchesByID(Request $request, Response $response, array $uri_args): Response
     {
+        // Retrieve tournament ID from the URI arguments, or set it to null if not provided
         $tournament_id = $uri_args["tournament_id"] ?? null;
 
         // Validate tournament_id format (WC-YYYY, e.g., WC-2022)
@@ -123,6 +130,7 @@ class TournamentsController extends BaseController
             throw new HttpInvalidInputException($request, "The provided tournament ID is invalid! Expected format: WC-XXXX (e.g., WC-2022).");
         }
 
+        // Extract query parameters (filters)
         $filters = $request->getQueryParams();
         $filter_values = [];
 
@@ -131,19 +139,24 @@ class TournamentsController extends BaseController
             $filter_values['stage_name'] = $filters['stage_name'];
         }
 
+        // validate pagination
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+        // Set pagination in the model class
         $this->tournaments_model->setPaginationOptions(
             $pageCount,
             $page_size
         );
 
-        // Fetch matches from the db
+        // Fetch tourneys from the db by a given id
         $matches = $this->tournaments_model->getTournamentMatchesById($tournament_id, $filter_values);
 
+        // If no data is found, throw a NotFoundException
         if ($matches === false || empty($matches)) {
             throw new HttpNotFoundException($request, "No matches found for tournament ID: $tournament_id or tournament does not exist.");
         }
+
+        // Return the data as a JSON response with a 200 OK status
         return $this->renderJson($response, $matches, 200);
     }
 }

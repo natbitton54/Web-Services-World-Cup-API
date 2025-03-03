@@ -52,26 +52,28 @@ class StadiumsController extends BaseController
         if (isset($filters['country']) && empty(trim($filters['country']))) {
             throw new HttpInvalidInputException($request, "Country must be a non-empty string.");
         }
-
         if (isset($filters['city']) && empty(trim($filters['city']))) {
             throw new HttpInvalidInputException($request, "City must be a non-empty string.");
         }
 
+        //  Extract sorting parameters from filters
         $sort_by = $filters['sort_by'] ?? "stadium_name";
         $sort_order = strtoupper($filters["sort_order"] ?? 'ASC');
 
+        //  Ensures sorting order is valid (either "ASC" or "DESC")
         if (!in_array($sort_order, ['ASC', 'DESC'])) {
             $sort_order = 'ASC';
         }
 
-
+        // validate pagination
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+        //Set pagination options in the player model
         $this->stadium_model->setPaginationOptions(
             $pageCount,
             $page_size
         );
-        // Step 2: Fetch the list of stadiums from the database
+        // Fetch the list of stadiums from the database
         $stadiums = $this->stadium_model->getStadiums($filters, $sort_by, $sort_order);
 
         // Step 3: Prepare the HTTP response message
@@ -93,6 +95,7 @@ class StadiumsController extends BaseController
      */
     public function handleGetMatchesByStadiumId(Request $request, Response $response, array $uri_args): Response
     {
+        // Step 1: Extract stadium ID from the URL arguments
         $stadium_id = $uri_args["stadium_id"] ?? null;
 
         // Validate stadium_id format (S-###)
@@ -101,16 +104,16 @@ class StadiumsController extends BaseController
             throw new HttpInvalidInputException($request, "The provided stadium ID is invalid!  format (S-###) expected");
         }
 
+        // Extract query parameters (filters)
         $filters = $request->getQueryParams();
 
-        // Validate filters
+        // Validate filters for tournament name and stage
         if (isset($filters['tournament_name'])) {
             $tournament_name = trim($filters['tournament_name']);
             if (empty($tournament_name) || !is_string($tournament_name)) {
                 throw new HttpInvalidInputException($request, "The 'tournament_name' filter must be a non-empty string.");
             }
         }
-
         if (isset($filters['stage'])) {
             $stage = trim($filters['stage']);
             if (empty($stage) || !is_string($stage)) {
@@ -118,20 +121,25 @@ class StadiumsController extends BaseController
             }
         }
 
+        // validate pagination
         [$pageCount, $page_size] = $this->validatePaginationParams($request, $filters);
 
+
+        //  Set pagination options in the stadium model
         $this->stadium_model->setPaginationOptions(
             $pageCount,
             $page_size
         );
 
-        // Fetch matches from the db
+        // Fetch matches from the db and filters
         $matches = $this->stadium_model->getMatchesByStadiumId($stadium_id, $filters);
 
+        // If no stadium are found, throw a 404 error
         if ($matches === false) {
             throw new HttpNotFoundException($request, "No matches found for stadium ID: $stadium_id or stadium does not exist.");
         }
 
+        // Encode the response payload in JSON and return it
         return $this->renderJson($response, $matches, 200);
     }
 
